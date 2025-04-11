@@ -128,7 +128,7 @@ st.markdown("""
 # Logo et titre
 col1, col2, col3 = st.columns([1, 3, 1])
 with col1:
-    st.image("logo.png", width=200)  
+    st.image("logo.png", width=150)  
 with col2:
     st.markdown("<h1 class='main-title'>Ancrage Territorial de Perpignan</h1>", unsafe_allow_html=True)
     st.markdown("<h3 class='sub-title'>Analyse et étude du territoire</h3>", unsafe_allow_html=True)
@@ -136,7 +136,7 @@ with col2:
 st.markdown("---")
 
 # Barre latérale
-st.sidebar.image("logo.png", width=150)
+st.sidebar.image("logo.png", width=90)
 st.sidebar.title("Navigation")
 
 # Menu de navigation
