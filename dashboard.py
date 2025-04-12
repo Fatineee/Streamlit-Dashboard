@@ -136,7 +136,7 @@ with col2:
 st.markdown("---")
 
 # Barre latérale
-st.sidebar.image("logo.png", width=90)
+st.sidebar.image("logo.png", width=100)
 st.sidebar.title("Navigation")
 
 # Menu de navigation
