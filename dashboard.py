@@ -265,7 +265,7 @@ if page == "Tableau de bord":
                 if not pd.isna(avg_cre):
                     st.markdown(f"""
                     <div class='metric-card'>
-                        <div class='metric-title'>Mesure CRE moyenne</div>
+                        <div class='metric-title'>Mesure de création moyenne</div>
                         <div class='metric-value'>{avg_cre:.2f}</div>
                     </div>
                     """, unsafe_allow_html=True)
