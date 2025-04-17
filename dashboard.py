@@ -28,10 +28,10 @@ def load_data():
 @st.cache_resource
 def load_model():
     """Charger le modèle"""
-    with open('model_xgboost.pkl', 'rb') as file:
+    with open('xgboost_model_future.pkl', 'rb') as file:
         model = pickle.load(file)
     
-    with open('feature_info_ancrage_territorial.pkl', 'rb') as file:
+    with open('feature_info_future.pkl', 'rb') as file:
         feature_info = pickle.load(file)
     
     return model, feature_info
@@ -122,6 +122,7 @@ st.markdown("""
         text-align: center;
         width: 100%;
     }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -316,11 +317,11 @@ if page == "Tableau de bord":
             else:
                 st.warning("Données insuffisantes pour afficher la comparaison population active vs. emploi")
         
-        # Carte choroplèthe ou carte de densité - Remplacer par des données réelles
+        # Carte choroplèthe ou carte de densité 
         st.subheader("Distribution géographique des entreprises à Perpignan")
         st.markdown("*Cette carte montre une simulation de la distribution des entreprises dans les différents quartiers de Perpignan.*")
         
-        # Exemple de carte simple avec Plotly - À adapter avec vos données géospatiales réelles
+        # Exemple de carte simple avec Plotly -
         quartiers = ["Centre-Ville", "Bastide Saint-Jacques", "Les Remparts", "Haut-Vernet","Bas-Vernet", 
                             "Saint-Charles","Moulin à Vent", "Saint-Martin", "La Bastide","Catalunya"]
         
@@ -350,30 +351,45 @@ elif page == "Prédiction":
     if data_loaded:
         st.info("Utilisez ce formulaire pour prédire le taux de chômage en fonction des paramètres socio-économiques.")
         
+        # Obtenir l'année minimale pour calculer YearIndex
+        min_year = df['Year'].min() if not df.empty else 2017
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            year = st.number_input("Année", min_value=2017, max_value=2030, value=2025)
+            year = st.number_input("Année", min_value=int(min_year), max_value=2030, value=2025)
+            # Calculer YearIndex (année - valeur minimum)
+            year_index = year - min_year
             employed_total = st.number_input("Nombre total d'employés", min_value=10000, max_value=100000, value=55000)
             population_active = st.number_input("Population active", min_value=10000, max_value=100000, value=60000)
-        
+            sexe = st.selectbox("Sexe", ["F", "M"])
+            sexe_m = 1 if sexe == "M" else 0
+            
         with col2:
             company_count = st.number_input("Nombre d'entreprises", min_value=500, max_value=2000, value=1200)
             avg_cre_measure = st.number_input("Mesure CRE moyenne", min_value=40.0, max_value=60.0, value=50.0)
-            sexe = st.selectbox("Sexe", ["F", "M"])
-            sexe_m = 1 if sexe == "M" else 0
+            age = st.selectbox("Tranche d'âge", ["15-24", "25-39", "40-54", "55-64"])
+            # Ajouter un champ supplémentaire pour équilibrer, ou une note explicative
+            st.markdown("<div style='margin-top: 16px; padding: 10px; background-color: #f5f5f5; border-radius: 5px;'><strong>Note: </strong> Les paramètres ci-dessus influencent directement la prédiction du taux de chômage.</div>", unsafe_allow_html=True)
         
         if st.button("Prédire le taux de chômage", type="primary"):
             try:
-                # Préparer les données pour la prédiction
+                # Préparer les données pour la prédiction avec les transformations nécessaires
                 input_data = pd.DataFrame({
-                    'Year': [year],
-                    'Employed_Total': [employed_total],
-                    'Population_Active': [population_active],
-                    'company_count': [company_count],
-                    'avg_CRE_Measure': [avg_cre_measure],
-                    'Sexe_M': [sexe_m]
+                    'YearIndex': [year_index],
+                    'Sexe_M': [sexe_m],
+                    'age_15-24': [1 if age == "15-24" else 0],
+                    'age_25-39': [1 if age == "25-39" else 0],
+                    'age_40-54': [1 if age == "40-54" else 0],
+                    'age_55-64': [1 if age == "55-64" else 0],
+                    'log_Employed_Total': [np.log1p(employed_total)],
+                    'log_Population_Active': [np.log1p(population_active)],
+                    'log_company_count': [np.log1p(company_count)],
+                    'avg_CRE_Measure': [avg_cre_measure]
                 })
+                
+                # S'assurer que toutes les colonnes nécessaires sont présentes dans le bon ordre
+                input_data = input_data[feature_info['features']]
                 
                 # Faire la prédiction
                 prediction = model.predict(input_data)[0]
@@ -468,9 +484,11 @@ elif page == "Analyse des facteurs":
         
         # Créer un DataFrame pour l'importance des caractéristiques
         try:
+            # Extraire l'importance des features du modèle
+            feature_importances = model.feature_importances_
             importance_df = pd.DataFrame({
-                'Feature': feature_info['column_names'],
-                'Importance': [feature_info['feature_importance'][col] for col in feature_info['column_names']]
+                'Feature': feature_info['features'],
+                'Importance': feature_importances
             }).sort_values(by='Importance', ascending=False)
             
             col1, col2 = st.columns([3, 2])
@@ -492,6 +510,9 @@ elif page == "Analyse des facteurs":
             <li><strong>Nombre d'employés</strong> : Le nombre total de personnes employées est un indicateur direct de la santé économique.</li>
             <li><strong>Mesure CRE</strong> : Cet indicateur composite reflète la résilience économique du territoire.</li>
             <li><strong>Nombre d'entreprises</strong> : Un indicateur de la vitalité du tissu économique local.</li>
+            <li><strong>Tranche d'âge</strong> : Différentes tranches d'âge peuvent avoir des taux de chômage variés.</li>
+            <li><strong>Dimension temporelle</strong> : L'année influence les tendances économiques.</li>
+            <li><strong>Sexe</strong> : La variable du sexe peut indiquer des différences dans les opportunités d'emploi.</li>
         </ol>
     </div>
     """, unsafe_allow_html=True)
@@ -504,15 +525,20 @@ elif page == "Analyse des facteurs":
         
         # Calculer la matrice de corrélation
         try:
-            correlation_cols = [col for col in ['Taux_Chomage (%)', 'Employed_Total', 'Population_Active', 'company_count', 'avg_CRE_Measure'] if col in filtered_df.columns]
-            
-            if len(correlation_cols) > 1:
-                corr_matrix = filtered_df[correlation_cols].corr()
+            # Créer des versions non-log pour meilleure lisibilité
+            if 'Population_Active' in filtered_df.columns and 'Employed_Total' in filtered_df.columns and 'company_count' in filtered_df.columns:
+                correlation_cols = ['Taux_Chomage (%)', 'Employed_Total', 'Population_Active', 'company_count', 'avg_CRE_Measure']
+                correlation_cols = [col for col in correlation_cols if col in filtered_df.columns]
                 
-                # Afficher la heatmap
-                fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale='RdBu_r',
-                              title="Matrice de corrélation entre les variables économiques")
-                st.plotly_chart(fig, use_container_width=True)
+                if len(correlation_cols) > 1:
+                    corr_matrix = filtered_df[correlation_cols].corr()
+                    
+                    # Afficher la heatmap
+                    fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale='RdBu_r',
+                                  title="Matrice de corrélation entre les variables économiques")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("Données insuffisantes pour calculer les corrélations")
             else:
                 st.warning("Données insuffisantes pour calculer les corrélations")
         
@@ -543,6 +569,19 @@ elif page == "Analyse des facteurs":
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("Données insuffisantes pour l'analyse bivariée des entreprises")
+        
+        # Ajout d'une nouvelle section pour visualiser l'impact de l'âge
+        st.subheader("Impact de la tranche d'âge sur le taux de chômage")
+        
+        if 'age' in filtered_df.columns and 'Taux_Chomage (%)' in filtered_df.columns:
+            age_unemployment = filtered_df.groupby(['age', 'Sexe'])['Taux_Chomage (%)'].mean().reset_index()
+            
+            fig = px.bar(age_unemployment, x='age', y='Taux_Chomage (%)', 
+                       color='Sexe', barmode='group',
+                       title="Taux de chômage moyen par tranche d'âge et sexe")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Données insuffisantes pour analyser l'impact de l'âge")
     
     else:
         st.warning("Données non disponibles. Veuillez vérifier le chargement des fichiers.")
@@ -551,7 +590,7 @@ elif page == "Analyse des facteurs":
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #666666;">
+<div style="text-align: center; color: #666666; margin-top: 30px;">
     © 2025 | Projet de Fin d'Études - Ancrage Territorial de Perpignan | Tous droits réservés
 </div>
 """, unsafe_allow_html=True)

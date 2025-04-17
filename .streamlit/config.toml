@@ -1,0 +1,6 @@
+[server]
+# Désactive la protection CORS pour autoriser l’iframe cross‑origin
+enableCORS = false
+
+# Désactive la protection XSRF
+enableXsrfProtection = false
