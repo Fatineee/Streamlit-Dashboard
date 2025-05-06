@@ -2,3 +2,4 @@
 [server]
 enableCORS = false
 enableXsrfProtection = false
+fileWatcherType = "poll"
